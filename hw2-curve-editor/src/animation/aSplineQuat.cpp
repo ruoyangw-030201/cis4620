@@ -185,6 +185,7 @@ void ASplineQuat::createSplineCurveCubic()
 	mCachedCurve.clear();
 	int numKeys = mKeys.size();
 	double startTime = mKeys[0].first;
+	// debug
 	double endTime = mKeys[numKeys-1].first;
 
 	for (double t = startTime; t <= endTime; t += mDt)

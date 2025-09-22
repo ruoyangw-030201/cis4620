@@ -65,6 +65,7 @@ ASplineVec3::InterpolationType ASplineVec3::getInterpolationType() const
 void ASplineVec3::editKey(int keyID, const vec3& value)
 {
     assert(keyID >= 0 && keyID < mKeys.size());
+	// debug
     mKeys[keyID].second = value;
     computeControlPoints();
     cacheCurve();
