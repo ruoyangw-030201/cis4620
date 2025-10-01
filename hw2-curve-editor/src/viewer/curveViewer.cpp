@@ -48,7 +48,7 @@ void CurveViewer::createGUIWindow()
 	{
 		// Curve Type
 		const char* splineTypes[] = { "Linear", "Berstein-Bezier", "Casteljau-Bezier",
-			"Matrix-Bezier", "Hermite" };
+			"Matrix-Bezier", "Hermite", "BSpline" };
 
 		// Set spline type
 		ImGui::Combo("Type", &mCurrentSplineVec3Type, splineTypes, IM_ARRAYSIZE(splineTypes));

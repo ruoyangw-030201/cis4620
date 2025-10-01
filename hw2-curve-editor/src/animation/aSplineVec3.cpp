@@ -614,6 +614,19 @@ void ABSplineInterpolatorVec3::computeControlPoints(
 	// Hint: Do not use push_back() to insert control points here because the vector has been resized
 }
 
+vec3 CalculateShortestPath(const vec3& a, const vec3& b)
+{
+	vec3 B2(0, 0, 0);
+	for (int i = 0; i < 3; ++i) {
+		double diff = b[i] - a[i];
+
+		// Normalize difference to [-180,180]
+		diff = std::remainder(diff, 360.0);
+
+		B2[i] = a[i] + diff;
+	}
+	return B2;
+}
 
 vec3 AEulerLinearInterpolatorVec3::interpolateSegment(
 	const std::vector<ASplineVec3::Key>& keys, 
@@ -627,6 +640,10 @@ vec3 AEulerLinearInterpolatorVec3::interpolateSegment(
 	// TODO:
 	// Linear interpolate between key0 and key1
 	// You should convert the angles to find the shortest path for interpolation
+	key0 = CalculateShortestPath(vec3(0, 0, 0), key0);
+	key1 = CalculateShortestPath(key0, key1);
+
+	curveValue = key0 + u * (key1 - key0);
 
 	return curveValue;
 }
@@ -642,8 +659,13 @@ vec3 AEulerCubicInterpolatorVec3::interpolateSegment(
 	vec3 curveValue(0, 0, 0);
 	// TODO: 
 	// Step1: Get the 4 control points, b0, b1, b2 and b3 from the ctrlPoints vector
+	b0 = ctrlPoints[4 * segment];
+	b1 = ctrlPoints[4 * segment + 1];
+	b2 = ctrlPoints[4 * segment + 2];
+	b3 = ctrlPoints[4 * segment + 3];
 	// Step2: Compute the interpolated value f(u) point using  Bernstein polynomials
 	// You should convert the angles to find the shortest path for interpolation
+	curveValue = pow((1 - t), 3) * b0 + 3 * t * pow((1 - t), 2) * b1 + 3 * pow(t, 2) * (1 - t) * b2 + pow(t, 3) * b3;
 
 	return curveValue;
 }
@@ -656,13 +678,73 @@ void AEulerCubicInterpolatorVec3::computeControlPoints(
 	if (keys.size() <= 1) return;
 
 	// Hint: One naive way is to first convert the keys such that the differences of the x, y, z Euler angles 
-	//		 between every two adjacent keys are less than 180 degrees respectively 
+	//		 between every two adjacent keys are less than 180 degrees respectively
+	int n = keys.size();
 
 	for (int i = 1; i < keys.size(); i++)
 	{
 		vec3 b0, b1, b2, b3;
+		vec3 p0, p1, p2, p3;
+		double t0, t1, t2, t3;
 
 		// TODO: compute b0, b1, b2, b3
+		// Grab neighbors
+		p1 = keys[i - 1].second;
+		p2 = keys[i].second;
+		t1 = keys[i - 1].first;
+		t2 = keys[i].first;
+
+		// Handle boundaries
+		if (i > 1) {
+			p0 = keys[i - 2].second;
+			t0 = keys[i - 2].first;
+		}
+		else {
+			p0 = p1; // duplicate for left boundary
+			t0 = t1;
+		}
+
+		if (i < n - 1) {
+			p3 = keys[i + 1].second;
+			t3 = keys[i + 1].first;
+		}
+		else {
+			p3 = p2; // duplicate for right boundary
+			t3 = t2;
+		}
+
+		// Recalculate with shortest path correction
+		p0 = CalculateShortestPath(vec3(0, 0, 0), p0);
+		p1 = CalculateShortestPath(p0, p1);
+		p2 = CalculateShortestPath(p1, p2);
+		p3 = CalculateShortestPath(p2, p3);
+
+		// Compute slopes
+		vec3 s1, s2;
+
+		if (i == 1) { // left endpoint slope forward diff
+			s1 = (p2 - p1) / (t2 - t1);
+		}
+		else {
+			vec3 s_left = (p1 - p0) / (t1 - t0);
+			vec3 s_right = (p2 - p1) / (t2 - t1);
+			s1 = (s_left + s_right) / 2.0;
+		}
+
+		if (i == n - 1) { // right endpoint slope backward diff
+			s2 = (p2 - p1) / (t2 - t1);
+		}
+		else {
+			vec3 s_left = (p2 - p1) / (t2 - t1);
+			vec3 s_right = (p3 - p2) / (t3 - t2);
+			s2 = (s_left + s_right) / 2.0;
+		}
+
+		// Hermite to Bezier conversion
+		b0 = p1;
+		b3 = p2;
+		b1 = b0 + s1 / 3.0;
+		b2 = b3 - s2 / 3.0;
 
 		ctrlPoints.push_back(b0);
 		ctrlPoints.push_back(b1);

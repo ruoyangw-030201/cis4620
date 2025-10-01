@@ -130,6 +130,26 @@ void ASplineQuat::computeControlPoints(quat& startQuat, quat& endQuat)
 		//  for each cubic quaternion curve, then store the results in mCntrlPoints in same the same way 
 		//  as was used with the SplineVec implementation
 		//  Hint: use the SDouble, SBisect and Slerp to compute b1 and b2
+		// Neighboring quaternions
+		int i = segment;
+		q_1 = (i == 0) ? startQuat : mKeys[i - 1].second;
+		q0 = mKeys[i].second;
+		q1 = mKeys[i + 1].second;
+		q2 = (i == numKeys - 2) ? endQuat : mKeys[i + 2].second;
+
+		// First and last Bezier control points are just the segment endpoints
+		b0 = q0;
+		b3 = q1;
+
+		// Middle control points
+		quat s1 = quat::SBisect(q_1, q1);   // tangent at q0
+		quat s2 = quat::SBisect(q0, q2);    // tangent at q1
+
+		// Place b1 closer to q0, along the tangent direction
+		b1 = quat::Slerp(q0, s1, 1.0 / 3.0);
+
+		// Place b2 closer to q1, along its tangent direction
+		b2 = quat::Slerp(q1, s2, -1.0 / 3.0); 
 
 
 		mCtrlPoints.push_back(b0);
@@ -147,6 +167,17 @@ quat ASplineQuat::getLinearValue(double t)
 
 	// TODO: student implementation goes here
 	// compute the value of a linear quaternion spline at the value of t using slerp
+	double t0 = mKeys[segment].first;
+	double t1 = mKeys[segment + 1].first;
+
+	quat q0 = mKeys[segment].second;
+	quat q1 = mKeys[segment + 1].second;
+
+	// Normalize parameter u into [0,1]
+	double u = (t - t0) / (t1 - t0);
+
+	// Interpolate with quaternion slerp
+	return quat::Slerp(q0, q1, u);
 
 	return q;	
 }
@@ -175,6 +206,20 @@ quat ASplineQuat::getCubicValue(double t)
 
 	// TODO: student implementation goes here
 	// compute the value of a cubic quaternion spline at the value of t using Scubic
+	b0 = mCtrlPoints[4 * segment];
+	b1 = mCtrlPoints[4 * segment + 1];
+	b2 = mCtrlPoints[4 * segment + 2];
+	b3 = mCtrlPoints[4 * segment + 3];
+
+	// Get the time range for this segment
+	double t0 = mKeys[segment].first;
+	double t1 = mKeys[segment + 1].first;
+
+	// Normalize parameter to [0, 1]
+	double u = (t - t0) / (t1 - t0);
+
+	// Evaluate cubic quaternion spline
+	q = quat::Scubic(b0, b1, b2, b3, u);
 
 	return q;
 }
